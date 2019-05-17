@@ -26,14 +26,25 @@
 
 //这里不能加日志，会导致循环调用
 void ConsoleLog(const XLoggerInfo* _info, const char* _log) {
-	char result_log[2048] = {0};
+	char result_log[4096] = {0};
     if (_info) {
         const char* filename = ExtractFileName(_info->filename);
         char strFuncName [128] = {0};
         ExtractFunctionName(_info->func_name, strFuncName, sizeof(strFuncName));
-
-        snprintf(result_log,  sizeof(result_log), "[%s, %s, %d]:%s", filename, strFuncName, _info->line, _log?_log:"NULL==log!!!");
-        __android_log_write(_info->level+2, _info->tag?_info->tag:"", (const char*)result_log);
+        
+        char *buf = result_log;
+        int bufSize = sizeof(result_log);
+        int headcount = snprintf(buf, bufSize, "[%s(%s:%d)]: ", strFuncName, filename, _info->line);
+        buf += headcount;
+        bufSize -= headcount;
+        const char* leftlog = _log?_log:"NULL==log!!!";
+        int leftlogLen = strlen(leftlog);
+        while (leftlogLen > 0){
+            int ret = snprintf(buf, bufSize, "%s", leftlog);
+            __android_log_write(_info->level+2, _info->tag?_info->tag:"", (const char*)result_log);
+            leftlog += ret>bufSize ? bufSize : ret;
+            leftlogLen = strlen(leftlog);  
+        }
     } else {
     	snprintf(result_log,  sizeof(result_log) , "%s", _log?_log:"NULL==log!!!");
         __android_log_write(ANDROID_LOG_WARN, "", (const char*)result_log);
